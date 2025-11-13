@@ -1,0 +1,21 @@
+SRC_DIR := workloads
+BIN_DIR := bin
+
+CXX := g++
+CXXFLAGS := -O1 -Wall -std=c++20
+
+SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+BINS := $(patsubst $(SRC_DIR)/%.cpp, $(BIN_DIR)/%, $(SRCS))
+
+all: $(BINS)
+
+$(BIN_DIR)/%: $(SRC_DIR)/%.cpp | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+clean:
+	rm -rf $(BIN_DIR)
+
+.PHONY: all clean
