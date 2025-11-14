@@ -1,6 +1,7 @@
 import subprocess
 import os
 import glob
+import time
 
 DEFAULT_ITERATIONS = 1
 DEFAULT_DURATION = 10
@@ -101,23 +102,44 @@ def execute():
     # Create required folder
     os.makedirs(res_folder, exist_ok=True)
 
-    print("Executing experiments...")
-    binaries = glob.glob(f"{bin_folder}/*.out")
-    print(f"{len(binaries)} executables found..")
-
     cpus = get_unique_smt_groups()
     cpu0, cpu1 = cpus[0]
     print(f"Usando apenas o núcleo físico: SMT pair = ({cpu0}, {cpu1})")
 
-    for binA, binB in combinations(binaries, 2):
+    print("Executing experiments...")
+    binaries = glob.glob(f"{bin_folder}/*.out")
+    print(f"{len(binaries)} executables found..")
+    binary_pairs = list(combinations(binaries, 2))
+
+    total_combinations = len(binary_pairs) * num_iterations
+    print(f"Total de execuções previstas: {total_combinations}\n")
+
+    estimated_total_seconds = float(total_combinations * duration)
+    print(f"Tempo total estimado: ~{estimated_total_seconds / 60:.2f} minutos")
+
+    start_time = time.time()
+    current_run = 0
+
+    for binA, binB in binary_pairs:
         for it in range(num_iterations):
-            # nome do arquivo de log
+            current_run += 1
+            elapsed = time.time() - start_time
+            remaining = estimated_total_seconds - int(elapsed)
+
             nameA = os.path.basename(binA).replace(".out", "")
             nameB = os.path.basename(binB).replace(".out", "")
             result_file = f"{nameA}_vs_{nameB}_Execution-{it}.Experiment-{experiment_identifier}.res"
             out_path = f"{res_folder}/{result_file}"
 
-            print(f">> Rodando ({binA} @ cpu{cpu0}) e ({binB} @ cpu{cpu1})")
+            hrs = int(remaining // 3600)
+            mins = int((remaining % 3600) // 60)
+            secs = int(remaining % 60)
+            print(
+                (
+                    f"[({current_run}/{total_combinations}) Restante estimado: {hrs}h {mins}m {secs}s] "
+                    f">> Rodando ({binA} @ cpu{cpu0}) e ({binB} @ cpu{cpu1})"
+                )
+            )
 
             with open(out_path, "w") as output_file:
                 # processo 1: binA em cpu0
@@ -134,6 +156,7 @@ def execute():
 
                 pA.wait()
                 pB.wait()
+    print("\nExperimentos concluídos!")
 
 
 if __name__ == "__main__":
