@@ -1,34 +1,33 @@
-import subprocess
-import os
 import glob
+import os
+import subprocess
 import time
 
 DEFAULT_ITERATIONS = 1
 DEFAULT_DURATION = 10
-DEFAULT_BIN_FOLDER = "./bin"
-DEFAULT_RES_FOLDER = "./res"
+
+BIN_FOLDER = "./bin"
+RES_FOLDER = "./res"
+RES_SOLO_FOLDER = "solo"
+RES_COMB_FOLDER = "comb"
 
 
 def combinations(iterable, r):
-    # combinations('ABCD', 2) → AB AC AD BC BD CD
-    # combinations(range(4), 3) → 012 013 023 123
-
     pool = tuple(iterable)
     n = len(pool)
-    if r > n:
+    if not n and r:
         return
-    indices = list(range(r))
-
+    indices = [0] * r
     yield tuple(pool[i] for i in indices)
     while True:
         for i in reversed(range(r)):
-            if indices[i] != i + n - r:
+            if indices[i] != n - 1:
                 break
         else:
             return
         indices[i] += 1
         for j in range(i + 1, r):
-            indices[j] = indices[j - 1] + 1
+            indices[j] = indices[i]
         yield tuple(pool[i] for i in indices)
 
 
@@ -43,7 +42,6 @@ def get_unique_smt_groups():
         if not num.isdigit():
             continue
 
-        cpu_id = int(num)
         topo_path = f"{base}/{name}/topology/thread_siblings_list"
 
         if not os.path.exists(topo_path):
@@ -68,23 +66,17 @@ def get_unique_smt_groups():
 def execute():
     num_iterations = input(f"Number of executions [default={DEFAULT_ITERATIONS}]: ")
     duration = input(f"Duration [default={DEFAULT_DURATION}]: ")
-    bin_folder = input(f"Execs folder [default={DEFAULT_BIN_FOLDER}]: ")
-    res_folder = input(f"Results folder [default={DEFAULT_RES_FOLDER}]: ")
     experiment_identifier = input("Experiment identifier: ")
 
     if num_iterations == "":
         num_iterations = DEFAULT_ITERATIONS
     if duration == "":
         duration = DEFAULT_DURATION
-    if bin_folder == "":
-        bin_folder = DEFAULT_BIN_FOLDER
-    if res_folder == "":
-        res_folder = DEFAULT_RES_FOLDER
 
     num_iterations = int(num_iterations)
 
-    if not os.path.isdir(bin_folder) or not os.listdir(bin_folder):
-        print(f"Missing binaries at {bin_folder}")
+    if not os.path.isdir(BIN_FOLDER) or not os.listdir(BIN_FOLDER):
+        print(f"Missing binaries at {BIN_FOLDER}")
         exit(-1)
 
     # GCC version
@@ -94,31 +86,78 @@ def execute():
     version_full_text = version_full_text.split("\n")[0]
 
     # Parameters read
-    print(f"Executions: {duration}")
-    print(f"Executables folder: {bin_folder}")
-    print(f"Results folder: {res_folder}")
+    print(f"Interations: {num_iterations}")
+    print(f"Duration: {duration}")
+    print(f"Executables folder: {BIN_FOLDER}")
+    print(f"Results folder: {RES_FOLDER}")
     print(f"GCC version: {version_full_text}")
 
-    # Create required folder
-    os.makedirs(res_folder, exist_ok=True)
+    # Create required folders
+    os.makedirs(RES_FOLDER, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    experiment_dir = os.path.join(RES_FOLDER, f"{experiment_identifier}_{timestamp}")
+    experiment_solo_dir = os.path.join(experiment_dir, RES_SOLO_FOLDER)
+    experiment_comb_dir = os.path.join(experiment_dir, RES_COMB_FOLDER)
+    os.makedirs(experiment_dir, exist_ok=False)
+    os.makedirs(experiment_solo_dir, exist_ok=False)
+    os.makedirs(experiment_comb_dir, exist_ok=False)
+    print(f"Results will be saved in: {experiment_dir}\n")
 
     cpus = get_unique_smt_groups()
     cpu0, cpu1 = cpus[0]
-    print(f"Usando apenas o núcleo físico: SMT pair = ({cpu0}, {cpu1})")
+    print(f"Using only the physical core: SMT pair = ({cpu0}, {cpu1})")
+
+    # ========================= Execution ==============================
 
     print("Executing experiments...")
-    binaries = glob.glob(f"{bin_folder}/*.out")
-    print(f"{len(binaries)} executables found..")
+    binaries = glob.glob(f"{BIN_FOLDER}/*.out")
+    total_binaries = len(binaries)
+    print(f"{total_binaries} executables found..")
     binary_pairs = list(combinations(binaries, 2))
-
     total_combinations = len(binary_pairs) * num_iterations
-    print(f"Total de execuções previstas: {total_combinations}\n")
+    print(f"{total_combinations} binaries combinations..")
 
-    estimated_total_seconds = float(total_combinations * duration)
-    print(f"Tempo total estimado: ~{estimated_total_seconds / 60:.2f} minutos")
+    total_planned_executions = total_binaries + total_combinations
+    print(f"Total number of planned executions: {total_planned_executions}\n")
+
+    estimated_total_seconds = float(total_planned_executions * float(duration))
+    print(f"Estimated total time: ~{estimated_total_seconds / 60:.2f} minutes")
 
     start_time = time.time()
     current_run = 0
+
+    # ========================= Solo ===================================
+
+    for bin in binaries:
+        for it in range(num_iterations):
+            current_run += 1
+            elapsed = time.time() - start_time
+            remaining = estimated_total_seconds - int(elapsed)
+
+            name = os.path.basename(bin).replace(".out", "")
+            result_file = f"{name}_Execution-{it}.res"
+            out_path = os.path.join(experiment_solo_dir, result_file)
+
+            hrs = int(remaining // 3600)
+            mins = int((remaining % 3600) // 60)
+            secs = int(remaining % 60)
+            print(
+                (
+                    f"[({current_run}/{total_planned_executions}) Estimated remainder: {hrs}h {mins}m {secs}s] "
+                    f">> Executing ({bin} @ cpu{cpu0})"
+                )
+            )
+
+            with open(out_path, "w") as output_file:
+                # processo 1: binA em cpu0
+                pA = subprocess.Popen(
+                    ["taskset", "-c", str(cpu0), bin, str(duration)],
+                    stdout=output_file,
+                )
+
+                pA.wait()
+
+    # ========================= Combined ===============================
 
     for binA, binB in binary_pairs:
         for it in range(num_iterations):
@@ -128,16 +167,16 @@ def execute():
 
             nameA = os.path.basename(binA).replace(".out", "")
             nameB = os.path.basename(binB).replace(".out", "")
-            result_file = f"{nameA}_vs_{nameB}_Execution-{it}.Experiment-{experiment_identifier}.res"
-            out_path = f"{res_folder}/{result_file}"
+            result_file = f"{nameA}_vs_{nameB}_Execution-{it}.res"
+            out_path = os.path.join(experiment_comb_dir, result_file)
 
             hrs = int(remaining // 3600)
             mins = int((remaining % 3600) // 60)
             secs = int(remaining % 60)
             print(
                 (
-                    f"[({current_run}/{total_combinations}) Restante estimado: {hrs}h {mins}m {secs}s] "
-                    f">> Rodando ({binA} @ cpu{cpu0}) e ({binB} @ cpu{cpu1})"
+                    f"[({current_run}/{total_planned_executions}) Estimated remainder: {hrs}h {mins}m {secs}s] "
+                    f">> Executing ({binA} @ cpu{cpu0}) e ({binB} @ cpu{cpu1})"
                 )
             )
 
@@ -156,7 +195,7 @@ def execute():
 
                 pA.wait()
                 pB.wait()
-    print("\nExperimentos concluídos!")
+    print("\nExperiments completed!")
 
 
 if __name__ == "__main__":
