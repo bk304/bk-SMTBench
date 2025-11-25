@@ -6,51 +6,67 @@
 const char* name = "int_mul_ind";
 
 void workload() {
-    uint64_t i = 0, count0 = 1, count1 = 1, count2 = 1, count3 = 1, count4 = 1,
-             count5 = 1, count6 = 1, count7 = 1;
+    uint64_t i = 0;
+
+    // Inicializar registradores em assembly puro
+    asm volatile(
+        "mov $1, %%r12\n\t"
+        "mov $1, %%r13\n\t"
+        "mov $1, %%r14\n\t"
+        "mov $1, %%r15\n\t"
+        "mov $1, %%rbx\n\t"
+        "mov $1, %%rbp\n\t"
+        "mov $1, %%r8\n\t"
+        "mov $1, %%r9\n\t"
+        :
+        :
+        : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9"
+    );
 
     do {
-      asm volatile("imul %0, %0" : "=r"(count0) : "0"(count0) :);
-      asm volatile("imul %0, %0" : "=r"(count1) : "0"(count1) :);
-      asm volatile("imul %0, %0" : "=r"(count2) : "0"(count2) :);
-      asm volatile("imul %0, %0" : "=r"(count3) : "0"(count3) :);
-      asm volatile("imul %0, %0" : "=r"(count4) : "0"(count4) :);
-      asm volatile("imul %0, %0" : "=r"(count5) : "0"(count5) :);
-      asm volatile("imul %0, %0" : "=r"(count6) : "0"(count6) :);
-      asm volatile("imul %0, %0" : "=r"(count7) : "0"(count7) :);
+        asm volatile(
+            // 32 instruções IMUL puras
+            "imul %%r12, %%r12\n\t"
+            "imul %%r13, %%r13\n\t"
+            "imul %%r14, %%r14\n\t"
+            "imul %%r15, %%r15\n\t"
+            "imul %%rbx, %%rbx\n\t"
+            "imul %%rbp, %%rbp\n\t"
+            "imul %%r8, %%r8\n\t"
+            "imul %%r9, %%r9\n\t"
 
-      asm volatile("imul %0, %0" : "=r"(count0) : "0"(count0) :);
-      asm volatile("imul %0, %0" : "=r"(count1) : "0"(count1) :);
-      asm volatile("imul %0, %0" : "=r"(count2) : "0"(count2) :);
-      asm volatile("imul %0, %0" : "=r"(count3) : "0"(count3) :);
-      asm volatile("imul %0, %0" : "=r"(count4) : "0"(count4) :);
-      asm volatile("imul %0, %0" : "=r"(count5) : "0"(count5) :);
-      asm volatile("imul %0, %0" : "=r"(count6) : "0"(count6) :);
-      asm volatile("imul %0, %0" : "=r"(count7) : "0"(count7) :);
+            "imul %%r12, %%r12\n\t"
+            "imul %%r13, %%r13\n\t"
+            "imul %%r14, %%r14\n\t"
+            "imul %%r15, %%r15\n\t"
+            "imul %%rbx, %%rbx\n\t"
+            "imul %%rbp, %%rbp\n\t"
+            "imul %%r8, %%r8\n\t"
+            "imul %%r9, %%r9\n\t"
 
-      asm volatile("imul %0, %0" : "=r"(count0) : "0"(count0) :);
-      asm volatile("imul %0, %0" : "=r"(count1) : "0"(count1) :);
-      asm volatile("imul %0, %0" : "=r"(count2) : "0"(count2) :);
-      asm volatile("imul %0, %0" : "=r"(count3) : "0"(count3) :);
-      asm volatile("imul %0, %0" : "=r"(count4) : "0"(count4) :);
-      asm volatile("imul %0, %0" : "=r"(count5) : "0"(count5) :);
-      asm volatile("imul %0, %0" : "=r"(count6) : "0"(count6) :);
-      asm volatile("imul %0, %0" : "=r"(count7) : "0"(count7) :);
+            "imul %%r12, %%r12\n\t"
+            "imul %%r13, %%r13\n\t"
+            "imul %%r14, %%r14\n\t"
+            "imul %%r15, %%r15\n\t"
+            "imul %%rbx, %%rbx\n\t"
+            "imul %%rbp, %%rbp\n\t"
+            "imul %%r8, %%r8\n\t"
+            "imul %%r9, %%r9\n\t"
 
-      asm volatile("imul %0, %0" : "=r"(count0) : "0"(count0) :);
-      asm volatile("imul %0, %0" : "=r"(count1) : "0"(count1) :);
-      asm volatile("imul %0, %0" : "=r"(count2) : "0"(count2) :);
-      asm volatile("imul %0, %0" : "=r"(count3) : "0"(count3) :);
-      asm volatile("imul %0, %0" : "=r"(count4) : "0"(count4) :);
-      asm volatile("imul %0, %0" : "=r"(count5) : "0"(count5) :);
-      asm volatile("imul %0, %0" : "=r"(count6) : "0"(count6) :);
-      asm volatile("imul %0, %0" : "=r"(count7) : "0"(count7) :);
-      i++;
+            "imul %%r12, %%r12\n\t"
+            "imul %%r13, %%r13\n\t"
+            "imul %%r14, %%r14\n\t"
+            "imul %%r15, %%r15\n\t"
+            "imul %%rbx, %%rbx\n\t"
+            "imul %%rbp, %%rbp\n\t"
+            "imul %%r8, %%r8\n\t"
+            "imul %%r9, %%r9\n\t"
+            :
+            :
+            : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9"
+        );
+        i++;
     } while (alive);
-
-    volatile int64_t avoidOtimization =
-        count0 + count1 + count2 + count3 + count4 + count5 + count6 + count7;
-    (void)avoidOtimization;
 
     printf("%s | Result: %lu\n", name, i);
 }

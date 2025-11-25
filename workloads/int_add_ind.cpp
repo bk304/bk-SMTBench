@@ -8,51 +8,65 @@
 const char* name = "int_add_ind";
 
 void workload() {
-    uint64_t i = 0, count0 = 0, count1 = 0, count2 = 0, count3 = 0, count4 = 0,
-             count5 = 0, count6 = 0, count7 = 0;
+    uint64_t i = 0;
+
+    asm volatile(
+        "xor %%r12, %%r12\n\t"
+        "xor %%r13, %%r13\n\t"
+        "xor %%r14, %%r14\n\t"
+        "xor %%r15, %%r15\n\t"
+        "xor %%rbx, %%rbx\n\t"
+        "xor %%rbp, %%rbp\n\t"
+        "xor %%r8, %%r8\n\t"
+        "xor %%r9, %%r9\n\t"
+        :
+        :
+        : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9"
+    );
 
     do {
-        asm volatile("add %0, %0" : "=r"(count0) : "0"(count0) :);
-        asm volatile("add %0, %0" : "=r"(count1) : "0"(count1) :);
-        asm volatile("add %0, %0" : "=r"(count2) : "0"(count2) :);
-        asm volatile("add %0, %0" : "=r"(count3) : "0"(count3) :);
-        asm volatile("add %0, %0" : "=r"(count4) : "0"(count4) :);
-        asm volatile("add %0, %0" : "=r"(count5) : "0"(count5) :);
-        asm volatile("add %0, %0" : "=r"(count6) : "0"(count6) :);
-        asm volatile("add %0, %0" : "=r"(count7) : "0"(count7) :);
+        asm volatile(
+            "add %%r12, %%r12\n\t"
+            "add %%r13, %%r13\n\t"
+            "add %%r14, %%r14\n\t"
+            "add %%r15, %%r15\n\t"
+            "add %%rbx, %%rbx\n\t"
+            "add %%rbp, %%rbp\n\t"
+            "add %%r8, %%r8\n\t"
+            "add %%r9, %%r9\n\t"
 
-        asm volatile("add %0, %0" : "=r"(count0) : "0"(count0) :);
-        asm volatile("add %0, %0" : "=r"(count1) : "0"(count1) :);
-        asm volatile("add %0, %0" : "=r"(count2) : "0"(count2) :);
-        asm volatile("add %0, %0" : "=r"(count3) : "0"(count3) :);
-        asm volatile("add %0, %0" : "=r"(count4) : "0"(count4) :);
-        asm volatile("add %0, %0" : "=r"(count5) : "0"(count5) :);
-        asm volatile("add %0, %0" : "=r"(count6) : "0"(count6) :);
-        asm volatile("add %0, %0" : "=r"(count7) : "0"(count7) :);
+            "add %%r12, %%r12\n\t"
+            "add %%r13, %%r13\n\t"
+            "add %%r14, %%r14\n\t"
+            "add %%r15, %%r15\n\t"
+            "add %%rbx, %%rbx\n\t"
+            "add %%rbp, %%rbp\n\t"
+            "add %%r8, %%r8\n\t"
+            "add %%r9, %%r9\n\t"
 
-        asm volatile("add %0, %0" : "=r"(count0) : "0"(count0) :);
-        asm volatile("add %0, %0" : "=r"(count1) : "0"(count1) :);
-        asm volatile("add %0, %0" : "=r"(count2) : "0"(count2) :);
-        asm volatile("add %0, %0" : "=r"(count3) : "0"(count3) :);
-        asm volatile("add %0, %0" : "=r"(count4) : "0"(count4) :);
-        asm volatile("add %0, %0" : "=r"(count5) : "0"(count5) :);
-        asm volatile("add %0, %0" : "=r"(count6) : "0"(count6) :);
-        asm volatile("add %0, %0" : "=r"(count7) : "0"(count7) :);
+            "add %%r12, %%r12\n\t"
+            "add %%r13, %%r13\n\t"
+            "add %%r14, %%r14\n\t"
+            "add %%r15, %%r15\n\t"
+            "add %%rbx, %%rbx\n\t"
+            "add %%rbp, %%rbp\n\t"
+            "add %%r8, %%r8\n\t"
+            "add %%r9, %%r9\n\t"
 
-        asm volatile("add %0, %0" : "=r"(count0) : "0"(count0) :);
-        asm volatile("add %0, %0" : "=r"(count1) : "0"(count1) :);
-        asm volatile("add %0, %0" : "=r"(count2) : "0"(count2) :);
-        asm volatile("add %0, %0" : "=r"(count3) : "0"(count3) :);
-        asm volatile("add %0, %0" : "=r"(count4) : "0"(count4) :);
-        asm volatile("add %0, %0" : "=r"(count5) : "0"(count5) :);
-        asm volatile("add %0, %0" : "=r"(count6) : "0"(count6) :);
-        asm volatile("add %0, %0" : "=r"(count7) : "0"(count7) :);
+            "add %%r12, %%r12\n\t"
+            "add %%r13, %%r13\n\t"
+            "add %%r14, %%r14\n\t"
+            "add %%r15, %%r15\n\t"
+            "add %%rbx, %%rbx\n\t"
+            "add %%rbp, %%rbp\n\t"
+            "add %%r8, %%r8\n\t"
+            "add %%r9, %%r9\n\t"
+            :
+            :
+            : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9", "memory"
+        );
         i++;
     } while (alive);
-
-    volatile int64_t avoidOtimization =
-        count0 + count1 + count2 + count3 + count4 + count5 + count6 + count7;
-    (void)avoidOtimization;
 
     printf("%s | Result: %lu\n", name, i);
 }
