@@ -1,13 +1,12 @@
-import glob
+import argparse
 import os
 import subprocess
 import time
 
+from utils import get_unique_smt_groups, read_workloads_from_bin
+
 DEFAULT_ITERATIONS = 1
 DEFAULT_DURATION = 10
-
-BIN_FOLDER = "./bin"
-RES_FOLDER = "./res"
 RES_SOLO_FOLDER = "solo"
 RES_COMB_FOLDER = "comb"
 
@@ -31,71 +30,42 @@ def combinations(iterable, r):
         yield tuple(pool[i] for i in indices)
 
 
-def get_unique_smt_groups():
-    base = "/sys/devices/system/cpu"
-    groups = set()
-
-    for name in os.listdir(base):
-        if not name.startswith("cpu"):
-            continue
-        num = name[3:]
-        if not num.isdigit():
-            continue
-
-        topo_path = f"{base}/{name}/topology/thread_siblings_list"
-
-        if not os.path.exists(topo_path):
-            continue
-
-        with open(topo_path, "r") as f:
-            content = f.read().strip()
-
-        ids = []
-        for part in content.split(","):
-            if "-" in part:
-                start, end = map(int, part.split("-"))
-                ids.extend(range(start, end + 1))
-            else:
-                ids.append(int(part))
-
-        groups.add(tuple(sorted(ids)))
-
-    return sorted(groups)
-
-
 def execute():
-    num_iterations = input(f"Number of executions [default={DEFAULT_ITERATIONS}]: ")
-    duration = input(f"Duration [default={DEFAULT_DURATION}]: ")
-    experiment_identifier = input("Experiment identifier: ")
+    p = argparse.ArgumentParser()
+    p.add_argument(
+        "--iterations",
+        type=int,
+        default=DEFAULT_ITERATIONS,
+        help=f"number of iterations for each test (default {DEFAULT_ITERATIONS})",
+    )
+    p.add_argument(
+        "--duration",
+        type=int,
+        default=DEFAULT_DURATION,
+        help=f"duration in seconds of each run (default {DEFAULT_DURATION})",
+    )
+    p.add_argument("--bin", default="./bin", help="bin dir (default ./bin)")
+    p.add_argument("--res", default="./res", help="res dir (default ./res)")
+    p.add_argument(
+        "--identifier",
+        help="Experiment identifier. (Just a nametag)",
+    )
+    args = p.parse_args()
 
-    if num_iterations == "":
-        num_iterations = DEFAULT_ITERATIONS
-    if duration == "":
-        duration = DEFAULT_DURATION
+    num_iterations = args.iterations
+    duration = args.duration
+    experiment_identifier = args.identifier or input("Experiment identifier: ")
+    bin_folder = args.bin
+    res_folder = args.res
 
-    num_iterations = int(num_iterations)
-
-    if not os.path.isdir(BIN_FOLDER) or not os.listdir(BIN_FOLDER):
-        print(f"Missing binaries at {BIN_FOLDER}")
+    if not os.path.isdir(bin_folder) or not os.listdir(bin_folder):
+        print(f'Missing binaries at {bin_folder}. Maybe you need to run "make"?')
         exit(-1)
 
-    # GCC version
-    version_full_text = subprocess.run(
-        ["gcc", "--version"], capture_output=True, text=True
-    ).stdout.strip()
-    version_full_text = version_full_text.split("\n")[0]
-
-    # Parameters read
-    print(f"Interations: {num_iterations}")
-    print(f"Duration: {duration}")
-    print(f"Executables folder: {BIN_FOLDER}")
-    print(f"Results folder: {RES_FOLDER}")
-    print(f"GCC version: {version_full_text}")
-
     # Create required folders
-    os.makedirs(RES_FOLDER, exist_ok=True)
+    os.makedirs(res_folder, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    experiment_dir = os.path.join(RES_FOLDER, f"{experiment_identifier}_{timestamp}")
+    experiment_dir = os.path.join(res_folder, f"{experiment_identifier}_{timestamp}")
     experiment_solo_dir = os.path.join(experiment_dir, RES_SOLO_FOLDER)
     experiment_comb_dir = os.path.join(experiment_dir, RES_COMB_FOLDER)
     os.makedirs(experiment_dir, exist_ok=False)
@@ -103,14 +73,34 @@ def execute():
     os.makedirs(experiment_comb_dir, exist_ok=False)
     print(f"Results will be saved in: {experiment_dir}\n")
 
+    # get GCC version
+    version_full_text = subprocess.run(
+        ["gcc", "--version"], capture_output=True, text=True
+    ).stdout.splitlines()[0]
+
+    # Chosing cpus
     cpus = get_unique_smt_groups()
     cpu0, cpu1 = cpus[0]
-    print(f"Using only the physical core: SMT pair = ({cpu0}, {cpu1})")
+
+    lines = [
+        f"Experiment identifier: {experiment_identifier}",
+        f"Iterations: {num_iterations}",
+        f"Duration: {duration}",
+        f"Executables folder: {bin_folder}",
+        f"Results folder: {res_folder}",
+        f"Experiment folder: {experiment_dir}",
+        f"GCC version: {version_full_text}",
+        f"Using only the physical core: SMT pair = ({cpu0}, {cpu1})",
+    ]
+    # Print and save
+    print("\n".join(lines))
+    with open(os.path.join(experiment_dir, "info.txt"), "w") as f:
+        f.write("\n".join(lines) + "\n")
 
     # ========================= Execution ==============================
 
     print("Executing experiments...")
-    binaries = glob.glob(f"{BIN_FOLDER}/*.out")
+    binaries = read_workloads_from_bin(bin_folder, keep_extension=True)
     total_binaries = len(binaries)
     print(f"{total_binaries} executables found..")
     binary_pairs = list(combinations(binaries, 2))
@@ -129,6 +119,7 @@ def execute():
     # ========================= Solo ===================================
 
     for bin in binaries:
+        bin_path = os.path.join(bin_folder, bin)
         for it in range(num_iterations):
             current_run += 1
             elapsed = time.time() - start_time
@@ -151,7 +142,7 @@ def execute():
             with open(out_path, "w") as output_file:
                 # processo 1: binA em cpu0
                 pA = subprocess.Popen(
-                    ["taskset", "-c", str(cpu0), bin, str(duration)],
+                    ["taskset", "-c", str(cpu0), bin_path, str(duration)],
                     stdout=output_file,
                 )
 
@@ -160,6 +151,8 @@ def execute():
     # ========================= Combined ===============================
 
     for binA, binB in binary_pairs:
+        binA_path = os.path.join(bin_folder, binA)
+        binB_path = os.path.join(bin_folder, binB)
         for it in range(num_iterations):
             current_run += 1
             elapsed = time.time() - start_time
@@ -183,13 +176,13 @@ def execute():
             with open(out_path, "w") as output_file:
                 # processo 1: binA em cpu0
                 pA = subprocess.Popen(
-                    ["taskset", "-c", str(cpu0), binA, str(duration)],
+                    ["taskset", "-c", str(cpu0), binA_path, str(duration)],
                     stdout=output_file,
                 )
 
                 # processo 2: binB em cpu1
                 pB = subprocess.Popen(
-                    ["taskset", "-c", str(cpu1), binB, str(duration)],
+                    ["taskset", "-c", str(cpu1), binB_path, str(duration)],
                     stdout=output_file,
                 )
 

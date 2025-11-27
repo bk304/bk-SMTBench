@@ -5,13 +5,8 @@ import json
 import os
 import random
 from collections import defaultdict
-from math import comb
 
-
-def read_workloads_from_bin(bin_dir="./bin"):
-    bins = sorted(f for f in os.listdir(bin_dir) if f.endswith(".out"))
-    names = [os.path.splitext(f)[0] for f in bins]
-    return names
+from utils import choose_experiment, list_experiments, read_workloads_from_bin
 
 
 def read_matrix_csv(path):
@@ -85,10 +80,9 @@ def generate_sets(
     random.seed(seed)
     n = len(workloads)
     if k > n:
-        raise ValueError("k must be less than the number of avaliable workloads")
+        k = n
     occurrences = defaultdict(int)  # counts how many times a pair already appeared
     sets = []
-    all_pairs = set(pair_weights.keys())
 
     for idx in range(M):
         best = None
@@ -116,8 +110,9 @@ def generate_sets(
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--matrix", required=True, help="path to matrix.csv")
+    p.add_argument("--matrix", help="path to matrix.csv")
     p.add_argument("--bin", default="./bin", help="bin dir (default ./bin)")
+    p.add_argument("--res", default="./res", help="res dir (default ./res)")
     p.add_argument("--k", type=int, default=16, help="set size (CPUs logical)")
     p.add_argument("--M", type=int, default=100, help="number of sets to generate")
     p.add_argument(
@@ -127,7 +122,11 @@ def main():
         help="candidates tested per set (performance knob)",
     )
     p.add_argument("--seed", type=int, default=42, help="random seed")
-    p.add_argument("--out", default="generated_sets.json", help="output JSON file")
+    p.add_argument(
+        "--out",
+        default="sched_eval_profile.json",
+        help="output JSON file (default sched_eval_profile.json)",
+    )
     p.add_argument(
         "--max_top_per_set",
         type=int,
@@ -142,9 +141,19 @@ def main():
     )
     args = p.parse_args()
 
-    workloads = read_workloads_from_bin(args.bin)
+    if args.matrix is None:
+        exps = list_experiments(args.res)
+        chosen = choose_experiment(exps)
+        if not chosen:
+            return
+        _, path, _ = chosen
+        matrix_path = os.path.join(path, "matrix.csv")
+    else:
+        matrix_path = args.matrix
+
+    workloads = read_workloads_from_bin(args.bin, keep_extension=False)
     print(f"Found {len(workloads)} workloads in {args.bin}")
-    mat = read_matrix_csv(args.matrix)
+    mat = read_matrix_csv(matrix_path)
     pair_weights = build_pair_weights(workloads, mat)
 
     # compute per-workload aggregate "badness" (sum of pair weights) to find top_k
@@ -191,9 +200,10 @@ def main():
         pair_occ[f"{a},{b}"] = cnt
     out["pair_occurrences"] = pair_occ
 
-    with open(args.out, "w") as f:
+    output_path = os.path.join(os.path.dirname(matrix_path), args.out)
+    with open(output_path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"Wrote {args.out}")
+    print(f"Wrote {output_path}")
 
     # print summary top pairs by weight
     print("\nTop pairs by weight (sample):")

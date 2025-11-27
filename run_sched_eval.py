@@ -6,8 +6,11 @@ import subprocess
 import time
 from typing import List
 
+from utils import choose_experiment, list_experiments
+
 DEFAULT_DURATION = 10
 DEFAULT_PAUSE = 1.0  # small delay between executions just to avoid "noise"
+DEFAULT_PROFILE_NAME = "sched_eval_profile.json"
 
 
 def load_sets(json_path: str) -> List[List[str]]:
@@ -58,34 +61,44 @@ def run_single_set(set_id: int, workload_paths: List[str], duration: int):
 
 
 def main():
-    parser = argparse.ArgumentParser(
+    p = argparse.ArgumentParser(
         description="Run scheduler-eval workloads from generated sets"
     )
-    parser.add_argument(
-        "--sets", required=True, help="JSON generated with gen_weighted_sets.py"
+    p.add_argument("--bin", default="./bin", help="bin dir (default ./bin)")
+    p.add_argument("--res", default="./res", help="res dir (default ./res)")
+    p.add_argument(
+        "--profile",
+        help="JSON generated with gen_sched_eval_profile.py",
     )
-    parser.add_argument(
-        "--bin", default="./bin", help="Folder with compiled worklaods binaries"
-    )
-    parser.add_argument(
+    p.add_argument(
         "--duration",
         type=int,
         default=DEFAULT_DURATION,
         help="Duration for each workload in seconds",
     )
-    parser.add_argument(
+    p.add_argument(
         "--iterations", type=int, default=1, help="How many times to repeat each set"
     )
-    parser.add_argument(
+    p.add_argument(
         "--pause",
         type=float,
         default=DEFAULT_PAUSE,
         help="Delay between each execution of a set",
     )
-    args = parser.parse_args()
+    args = p.parse_args()
 
-    print(f"Loading sets: {args.sets}")
-    sets = load_sets(args.sets)
+    if args.profile is None:
+        exps = list_experiments(args.res)
+        chosen = choose_experiment(exps)
+        if not chosen:
+            return
+        _, path, _ = chosen
+        profile_path = os.path.join(path, DEFAULT_PROFILE_NAME)
+    else:
+        profile_path = args.profile
+
+    print(f"Loading sets: {profile_path}")
+    sets = load_sets(profile_path)
 
     print(f"Loading workloads: {args.bin}")
     name2path = load_workloads_from_bin(args.bin)

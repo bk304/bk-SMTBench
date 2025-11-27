@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 import os
 import re
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-RES_ROOT = "res"
+from utils import choose_experiment, list_experiments
+
 SOLO_DIRNAME = "solo"
 COMB_DIRNAME = "comb"
 
@@ -36,49 +37,6 @@ def geom_stddev(vals: List[float]) -> float:
     var = sum((x - mean_log) ** 2 for x in logs) / (len(logs))  # population var
     std_log = math.sqrt(var)
     return math.exp(std_log)
-
-
-# ---------- filesystem / parsing ----------
-def list_experiments(res_root: str = RES_ROOT) -> List[Tuple[str, str, float]]:
-    """Return list of (name, full_path, mtime) for subfolders in res_root sorted by mtime ascending."""
-    if not os.path.isdir(res_root):
-        return []
-    out = []
-    for name in os.listdir(res_root):
-        full = os.path.join(res_root, name)
-        if os.path.isdir(full):
-            try:
-                mtime = os.path.getmtime(full)
-            except OSError:
-                mtime = 0.0
-            out.append((name, full, mtime))
-    out.sort(key=lambda x: x[2])
-    return out
-
-
-def choose_experiment(
-    experiments: List[Tuple[str, str, float]],
-) -> Optional[Tuple[str, str, float]]:
-    if not experiments:
-        print("No experiment found in ", RES_ROOT)
-        return None
-    print("Experiments found:")
-    for idx, (name, full, mtime) in enumerate(experiments, start=1):
-        dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-        print(f"  {idx:>2}: {name}  (modified: {dt})")
-    default_idx = len(experiments)
-    prompt = f"\nChoose an experiment [1-{default_idx}] (ENTER = {default_idx} — {experiments[-1][0]}): "
-    while True:
-        choice = input(prompt).strip()
-        if choice == "":
-            return experiments[-1]
-        if choice.isdigit():
-            i = int(choice)
-            if 1 <= i <= default_idx:
-                return experiments[i - 1]
-        print(
-            "Invalid choise. Write a valid number or just press Enter to select the last experiment."
-        )
 
 
 def parse_result_file(path: str) -> Dict[str, float]:
@@ -319,13 +277,24 @@ def analyze_experiment(
     }
 
 
-# ---------- CLI ----------
-def main():
-    exps = list_experiments(RES_ROOT)
-    chosen = choose_experiment(exps)
-    if not chosen:
-        return
-    _, path, _ = chosen
+def analyze():
+    p = argparse.ArgumentParser()
+    p.add_argument("--res", default="./res", help="res dir (default ./res)")
+    p.add_argument(
+        "--identifier",
+        help="Experiment identifier. (Just a nametag)",
+    )
+    args = p.parse_args()
+
+    if args.identifier is None:
+        exps = list_experiments(args.res)
+        chosen = choose_experiment(exps)
+        if not chosen:
+            return
+        _, path, _ = chosen
+    else:
+        path = os.path.join(args.res, args.identifier)
+
     analyze_experiment(
         path,
         out_csv=os.path.join(path, "matrix.csv"),
@@ -334,4 +303,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    analyze()
