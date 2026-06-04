@@ -11,6 +11,12 @@ Agora gera DERIVED com:
 - Integer restante (count e %)
 """
 
+from __future__ import annotations
+
+from _bootstrap import ensure_project_root
+
+PROJECT_ROOT = ensure_project_root()
+
 import argparse
 import os
 import subprocess
@@ -20,7 +26,6 @@ import json
 
 DEFAULT_DURATION = 20
 
-# Event name mappings
 EVENT_NAMES = {
     "r103": "FP_ADD_SUB",
     "r203": "FP_MUL",
@@ -33,22 +38,21 @@ EVENT_NAMES = {
     "r129": "LOAD_DISPATCH",
     "r229": "STORE_DISPATCH",
     "r429": "LOAD_STORE_DISPATCH",
-    "r1ae": "INT_REGISTER_STALL",
-    "r20ae": "FP_REGISTER_STALL",
+    "r1ae": "INT_PHY_REG_FILE_RSRC_STALL",
+    "r20ae": "FP_REG_FILE_RSRC_STALL",
     "r2ae": "LOAD_QUEUE_STALL",
     "r4ae": "STORE_QUEUE_STALL",
     "r10ae": "TAKEN_BRANCH_QUEUE_STALL",
-    "r1af": "INT_SCHED0_STALL",
-    "r2af": "INT_SCHED1_STALL",
-    "r4af": "INT_SCHED2_STALL",
-    "r8af": "INT_SCHED3_STALL",
-    "r40ae": "FP_SCHEDULER_STALL",
+    "r1af": "INT_SCHEDULER_0_TOKEN_STALL",
+    "r2af": "INT_SCHEDULER_1_TOKEN_STALL",
+    "r4af": "INT_SCHEDULER_2_TOKEN_STALL",
+    "r8af": "INT_SCHEDULER_3_TOKEN_STALL",
+    "r40ae": "FP_SCHEDULER_RSRC_STALL",
     "r20af": "RETIRE_TOKEN_STALL",
     "r8ab": "INT_DISP_IBS_MODE",
     "r4ab": "FP_DISP_IBS_MODE",
 }
 
-# Perf events to collect
 STANDARD_EVENTS = [
     "instructions",
     "cycles",
@@ -62,23 +66,20 @@ STANDARD_EVENTS = [
     "task-clock",
 ]
 
-# FP events
 FP_EVENTS = ["r103", "r203", "r403", "r803", "r0100", "r0200", "r0400", "r0800"]
-
-# Memory events
-MEM_EVENTS = ["r129", "r229", "r329"]
-
-# Stall / IBS events
+MEM_EVENTS = ["r129", "r229", "r429"]
 STALL_EVENTS = [
-    "r1ae", "r20ae", "r2ae",
+    "r1ae", "r20ae", "r2ae", "r4ae", "r10ae",
     "r1af", "r2af", "r4af", "r8af", "r40ae",
     "r8ab", "r4ab", "r20af"
 ]
 
 PERF_EVENTS = STANDARD_EVENTS + FP_EVENTS + MEM_EVENTS + STALL_EVENTS
 
+
 def parse_val(valstr: str) -> int:
     return int(re.sub(r"[^0-9]", "", valstr))
+
 
 def execute():
     p = argparse.ArgumentParser(description="Profile workload with perf")
@@ -86,6 +87,7 @@ def execute():
     p.add_argument("--duration", type=int, default=DEFAULT_DURATION)
     p.add_argument("--cpu", type=int, default=0)
     p.add_argument("--events", help="Comma-separated perf events")
+    p.add_argument("--no-format", action="store_true", help="Show raw perf output without formatting")
     args = p.parse_args()
 
     binary_path = args.binary
@@ -110,12 +112,14 @@ def execute():
         result = subprocess.run(perf_cmd, capture_output=True, text=True)
         output = result.stdout + result.stderr
 
-        # Replace raw codes with readable names
         for raw_code, name in EVENT_NAMES.items():
             output = output.replace(f"{raw_code}:u", f"{name}:u")
             output = output.replace(f"{raw_code} ", f"{name} ")
 
-        # Parse counters
+        if args.no_format:
+            print(output)
+            sys.exit(result.returncode)
+
         counters = {}
         for line in output.splitlines():
             m = re.match(r"\s*([0-9\.,]+)\s+(\S+):u", line)
@@ -123,9 +127,6 @@ def execute():
                 valstr, name = m.groups()
                 counters[name] = parse_val(valstr)
 
-        # ------------------------------------------------------------------
-        # DERIVED: IPC e composição de instruções
-        # ------------------------------------------------------------------
         instructions = counters.get("instructions", 0)
         cycles = counters.get("cycles", 0)
         branches = counters.get("branches",0)
@@ -148,9 +149,6 @@ def execute():
         derived["Store"] = store
         derived["Store_percent"] = 100*store/instructions if instructions else None
 
-        # ------------------------------------------------------------------
-        # Organiza counters para PLOT_BUCKETS (stacked bar)
-        # ------------------------------------------------------------------
         plot_buckets = {
             "FP": {k: counters.get(k,0) for k in ["FP_ADD_SUB","FP_MUL","FP_DIV","FP_MAC","FP_DISP_IBS_MODE"]},
             "INT": {k: counters.get(k,0) for k in [
@@ -175,14 +173,12 @@ def execute():
             "PLOT_BUCKETS": plot_buckets
         }
 
-        # Cria pasta profiles se não existir
         os.makedirs("profiles", exist_ok=True)
         json_filename = os.path.join("profiles", os.path.basename(binary_path) + ".json")
         with open(json_filename, "w") as f:
             json.dump(data, f, indent=4)
 
         print(f"Profile saved to {json_filename}")
-
         print(json.dumps(data, indent=4))
         sys.exit(result.returncode)
 
@@ -192,6 +188,7 @@ def execute():
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     execute()

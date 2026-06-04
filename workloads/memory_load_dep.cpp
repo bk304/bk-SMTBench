@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <cstdlib>
 
 #include "../workload.h"
@@ -27,7 +26,7 @@ void workload() {
     base[length - 1].next = &base[0];
     base[length - 1].v = length - 1;
 
-    uint64_t i = 0, j = 0;
+    uint64_t j = 0;
     uint64_t value = 0;
     list_t *ptr_this;
 
@@ -72,25 +71,16 @@ void workload() {
 
             value = ptr_this->v;
         }
-        i += j;
     } while (alive);
 
     volatile int64_t avoidOtimization = value;
     (void)avoidOtimization;
-
-    printf("%s | Result: %lu\n", name, i);
 }
 
 int main(int argc, char* argv[]) {
-    int durationSeconds;
-    if (argc != 2 || !parse_int(argv[1], durationSeconds)) {
-        fprintf(stderr, "Invalid parameter.\n");
-        return -1;
-    }
-
-    init_workload(durationSeconds);
+    init(argc, argv);
     workload();
-    fini_workload();
+    fini(name);
 
     return 0;
 }

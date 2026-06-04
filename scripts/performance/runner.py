@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+from _bootstrap import ensure_project_root
+
+PROJECT_ROOT = ensure_project_root()
+
 import argparse
 import os
 import subprocess
@@ -5,8 +11,9 @@ import time
 
 from utils import get_unique_smt_groups, read_workloads_from_bin
 
-DEFAULT_ITERATIONS = 2
-DEFAULT_DURATION = 15
+DEFAULT_ITERATIONS = 3
+DEFAULT_DURATION = 10
+NICE = -20
 RES_SOLO_FOLDER = "solo"
 RES_COMB_FOLDER = "comb"
 
@@ -62,7 +69,6 @@ def execute():
         print(f'Missing binaries at {bin_folder}. Maybe you need to run "make"?')
         exit(-1)
 
-    # Create required folders
     os.makedirs(res_folder, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     experiment_dir = os.path.join(res_folder, f"{experiment_identifier}_{timestamp}")
@@ -73,12 +79,10 @@ def execute():
     os.makedirs(experiment_comb_dir, exist_ok=False)
     print(f"Results will be saved in: {experiment_dir}\n")
 
-    # get GCC version
     version_full_text = subprocess.run(
         ["gcc", "--version"], capture_output=True, text=True
     ).stdout.splitlines()[0]
 
-    # Chosing cpus
     cpus = get_unique_smt_groups()
     cpu0, cpu1 = cpus[0]
 
@@ -92,12 +96,9 @@ def execute():
         f"GCC version: {version_full_text}",
         f"Using only the physical core: SMT pair = ({cpu0}, {cpu1})",
     ]
-    # Print and save
     print("\n".join(lines))
     with open(os.path.join(experiment_dir, "info.txt"), "w") as f:
         f.write("\n".join(lines) + "\n")
-
-    # ========================= Execution ==============================
 
     print("Executing experiments...")
     binaries = read_workloads_from_bin(bin_folder, keep_extension=True)
@@ -115,8 +116,6 @@ def execute():
 
     start_time = time.time()
     current_run = 0
-
-    # ========================= Solo ===================================
 
     for bin in binaries:
         bin_path = os.path.join(bin_folder, bin)
@@ -140,15 +139,12 @@ def execute():
             )
 
             with open(out_path, "w") as output_file:
-                # processo 1: binA em cpu0
                 pA = subprocess.Popen(
-                    ["taskset", "-c", str(cpu0), bin_path, str(duration)],
+                    ["nice", "-n", str(NICE), "taskset", "-c", str(cpu0), bin_path, str(duration)],
                     stdout=output_file,
                 )
 
                 pA.wait()
-
-    # ========================= Combined ===============================
 
     for binA, binB in binary_pairs:
         binA_path = os.path.join(bin_folder, binA)
@@ -174,15 +170,13 @@ def execute():
             )
 
             with open(out_path, "w") as output_file:
-                # processo 1: binA em cpu0
                 pA = subprocess.Popen(
-                    ["taskset", "-c", str(cpu0), binA_path, str(duration)],
+                    ["nice", "-n", str(NICE), "taskset", "-c", str(cpu0), binA_path, str(duration)],
                     stdout=output_file,
                 )
 
-                # processo 2: binB em cpu1
                 pB = subprocess.Popen(
-                    ["taskset", "-c", str(cpu1), binB_path, str(duration)],
+                    ["nice", "-n", str(NICE), "taskset", "-c", str(cpu1), binB_path, str(duration)],
                     stdout=output_file,
                 )
 

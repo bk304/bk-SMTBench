@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <cinttypes>
 #include <cstdint>
 
@@ -25,7 +24,6 @@ static inline uint64_t xorshift64(uint64_t* s) {
 }
 
 void workload() {
-    uint64_t iters = 0;
     uint64_t state = (uint64_t)time(nullptr) ^ (uintptr_t)&state;
 
     if (!bigbuf) {
@@ -72,23 +70,13 @@ void workload() {
                   "r8","r9","r12","r13","r14","r15","memory"
             );
         }
-
-        iters++;
     } while (alive);
-
-    printf("%s | Result: %lu\n", name, iters);
 }
 
 int main(int argc, char* argv[]) {
-    int durationSeconds;
-    if (argc != 2 || !parse_int(argv[1], durationSeconds)) {
-        fprintf(stderr, "Invalid parameter.\n");
-        return -1;
-    }
-
-    init_workload(durationSeconds);
+    init(argc, argv);
     workload();
-    fini_workload();
+    fini(name);
 
     return 0;
 }

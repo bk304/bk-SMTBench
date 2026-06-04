@@ -1,7 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
-
-#include <cstdint>
 
 #include "../workload.h"
 
@@ -10,7 +7,6 @@ const char* name = "branch_mispredict";
 // 3-way indirect branch
 // Source: Agner Fog
 void workload() {
-    unsigned long i = 0;
 
     while (alive) {
         asm volatile(
@@ -40,22 +36,13 @@ void workload() {
             :
             : "eax", "edi", "rbx", "rcx", "rdx", "r8", "cc"
         );
-        i++;
     }
-
-    printf("%s | Result: %lu\n", name, i);
 }
 
 int main(int argc, char* argv[]) {
-    int durationSeconds;
-    if (argc != 2 || !parse_int(argv[1], durationSeconds)) {
-        fprintf(stderr, "Invalid parameter.\n");
-        return -1;
-    }
-
-    init_workload(durationSeconds);
+    init(argc, argv);
     workload();
-    fini_workload();
+    fini(name);
 
     return 0;
 }

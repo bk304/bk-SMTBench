@@ -1,13 +1,10 @@
 #include <stdint.h>
-#include <stdio.h>
 
 #include "../workload.h"
 
 const char* name = "int_mul_ind";
 
 void workload() {
-    uint64_t i = 0;
-
     // Inicializar registradores em assembly puro
     asm volatile(
         "mov $1, %%r12\n\t"
@@ -65,22 +62,13 @@ void workload() {
             :
             : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9"
         );
-        i++;
     } while (alive);
-
-    printf("%s | Result: %lu\n", name, i);
 }
 
 int main(int argc, char* argv[]) {
-    int durationSeconds;
-    if (argc != 2 || !parse_int(argv[1], durationSeconds)) {
-        fprintf(stderr, "Invalid parameter.\n");
-        return -1;
-    }
-
-    init_workload(durationSeconds);
+    init(argc, argv);
     workload();
-    fini_workload();
+    fini(name);
 
     return 0;
 }

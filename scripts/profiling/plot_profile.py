@@ -8,16 +8,55 @@ Plot stacked bar charts from perf_profile JSON output.
 - Cada categoria tem cor + textura (hatch) para melhor visualização
 """
 
+from __future__ import annotations
+
+from _bootstrap import ensure_project_root
+
+PROJECT_ROOT = ensure_project_root()
+
 import json
 import argparse
 import matplotlib
-matplotlib.use("Agg") # Backend padrão para PDF
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
+WORKLOAD_NAMES = {
+    "branch_mispredict.out": "Branch Prediction Stress",
+    "fp_add_ind.out": "FP Add (Ind.)",
+    "fp_div_ind.out": "FP Div (Ind.)",
+    "fp_mul_ind.out": "FP Mul (Ind.)",
+    "fp_prf_stress.out": "FP Register Pressure",
+    "long_dep_chain.out": "Int Add (Dep.)",
+    "int_add_ind.out": "Int Add (Ind.)",
+    "int_div_dep.out": "Int Div (Dep.)",
+    "int_div_ind.out": "Int Div (Ind.)",
+    "int_mul_ind.out": "Int Mul (Ind.)",
+    "int_prf_stress.out": "Int Register Pressure",
+    "memory_load_dep.out": "Mem Load 64 MiB (Dep.)",
+    "memory_load_ind.out": "Mem Load 64 MiB (Ind.)",
+    "memory_store_ind.out": "Mem Store 64 MiB (Ind.)"
+}
+
+WORKLOAD_ORDER = [
+    "Branch Prediction Stress",
+    "Int Register Pressure",
+    "Int Add (Dep.)",
+    "Int Add (Ind.)",
+    "Int Mul (Ind.)",
+    "Int Div (Dep.)",
+    "Int Div (Ind.)",
+    "FP Register Pressure",
+    "FP Add (Ind.)",
+    "FP Mul (Ind.)",
+    "FP Div (Ind.)",
+    "Mem Load 64 MiB (Dep.)",
+    "Mem Load 64 MiB (Ind.)",
+    "Mem Store 64 MiB (Ind.)"
+]
+
 def load_json_files(file_list):
-    """Carrega múltiplos JSONs em uma lista de dicionários"""
     data_list = []
     for f in file_list:
         with open(f, 'r') as fp:
@@ -25,11 +64,13 @@ def load_json_files(file_list):
     return data_list
 
 def prepare_dataframe(data_list):
-    """Cria DataFrame para stacked bar: Branch, FP, INT_rest, Load, Store"""
     rows = []
     for d in data_list:
+        workload_name = d["workload_name"]
+        display_name = WORKLOAD_NAMES.get(workload_name, workload_name)
+        
         row = {
-            "workload": d["workload_name"],
+            "workload": display_name,
             "Branches": d["DERIVED"].get("Branches",0),
             "Floating-point": d["DERIVED"].get("FP_total",0),
             "Integer": d["DERIVED"].get("INT_rest",0),
@@ -40,14 +81,12 @@ def prepare_dataframe(data_list):
     df = pd.DataFrame(rows)
     df.set_index("workload", inplace=True)
 
-    df.index = [name.replace('_', r'\_') for name in df.index]
+    df = df.reindex([w for w in WORKLOAD_ORDER if w in df.index])
 
-    # Normaliza para porcentagem
     df_percent = df.div(df.sum(axis=1), axis=0) * 100
     return df_percent
 
 def plot_stacked_bar(df):
-    """Plota o stacked bar em porcentagem com grid horizontal e texturas"""
     width_pt = 455.24413
     inches_per_pt = 1.0 / 72.27
     fig_width = width_pt * inches_per_pt
@@ -57,13 +96,13 @@ def plot_stacked_bar(df):
         "text.usetex": True,
         "font.family": "serif",
         "font.serif": ["Computer Modern Roman"],
-        "font.size": 11,             # Ajuste para 10 ou 12 se seu documento mudar
+        "font.size": 11,
         "axes.labelsize": 11,
         "legend.fontsize": 9,
         "xtick.labelsize": 9,
         "ytick.labelsize": 9,
         "figure.figsize": [fig_width, fig_height],
-        "figure.autolayout": True,   # Ajuda a não cortar labels
+        "figure.autolayout": True,
     })
 
     fig, ax = plt.subplots()
@@ -84,7 +123,6 @@ def plot_stacked_bar(df):
         "Store": "--"
     }
 
-
     bottom = pd.Series([0]*len(df), index=df.index)
 
     for col in df.columns:
@@ -97,21 +135,18 @@ def plot_stacked_bar(df):
         )
         bottom += df[col]
 
-    # Grid horizontal pontilhado
     ax.yaxis.grid(True, linestyle=':', linewidth=0.8, alpha=0.7)
 
-    # Eixo Y em porcentagem
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 20, 40, 60, 80, 100])
-    ax.set_ylabel("Distrubuição de Instruções (\%)")
+    ax.set_ylabel("Distrubuição de Instruções (\\%)")
     ax.set_xlabel("Workloads")
 
-    # Legenda horizontal acima do gráfico
     ax.legend(
         title="Tipos de Instrução",
-        loc='lower center',          # O ponto de ancoragem da legenda é a base dela
-        bbox_to_anchor=(0.5, 1.02),  # (X=meio, Y=logo acima do 1.0 que é o topo do eixo)
-        ncol=len(df.columns),        # Mantém horizontal
+        loc='lower center',
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=len(df.columns),
         fontsize=9,
         frameon=False,
         handletextpad=0.4,
@@ -119,10 +154,7 @@ def plot_stacked_bar(df):
     )
 
     plt.tight_layout()
-
-    # Nomes dos workloads em 45°
     plt.xticks(rotation=45, ha='right')
-
     plt.savefig("workloads.pdf", bbox_inches="tight")
 
 def main():

@@ -66,7 +66,7 @@ def choose_experiment(
     experiments: List[Tuple[str, str, float]],
 ) -> Optional[Tuple[str, str, float]]:
     if not experiments:
-        print("No experiment found. You need to run runner.py first.")
+        print("No experiment found. You need to run scripts/performance/runner.py first.")
         return None
     print("Experiments found:")
     for idx, (name, full, mtime) in enumerate(experiments, start=1):

@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <cstdlib>
 
 #include "../workload.h"
@@ -18,7 +17,7 @@ void workload() {
     for (size_t i = 0; i < length; i++)
         vec[i] = i;
 
-    uint64_t i = 0, j = 0;
+    uint64_t j = 0;
 
     uint64_t c0 = 0, c1 = 0, c2 = 0, c3 = 0;
     uint64_t c4 = 0, c5 = 0, c6 = 0, c7 = 0;
@@ -61,25 +60,16 @@ void workload() {
             c6 += vec[j + 30];
             c7 += vec[j + 31];
         }
-        i += j;
     } while (alive);
 
     volatile int64_t avoidOtimization = c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7;
     (void)avoidOtimization;
-
-    printf("%s | Result: %lu\n", name, i);
 }
 
 int main(int argc, char* argv[]) {
-    int durationSeconds;
-    if (argc != 2 || !parse_int(argv[1], durationSeconds)) {
-        fprintf(stderr, "Invalid parameter.\n");
-        return -1;
-    }
-
-    init_workload(durationSeconds);
+    init(argc, argv);
     workload();
-    fini_workload();
+    fini(name);
 
     return 0;
 }
