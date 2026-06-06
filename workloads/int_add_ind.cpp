@@ -23,6 +23,9 @@ void workload() {
 
     do {
         asm volatile(
+            ".align 64\n\t"
+
+            ".rept 50\n\t"
             "add %%r12, %%r12\n\t"
             "add %%r13, %%r13\n\t"
             "add %%r14, %%r14\n\t"
@@ -58,6 +61,7 @@ void workload() {
             "add %%rbp, %%rbp\n\t"
             "add %%r8, %%r8\n\t"
             "add %%r9, %%r9\n\t"
+            ".endr\n\t"
             :
             :
             : "r12", "r13", "r14", "r15", "rbx", "rbp", "r8", "r9", "memory"
