@@ -1,8 +1,11 @@
 import numpy as np
 import scipy.stats as stats
 
+# Eu fiz esse scritp para calcular as correlações pq o libreoffice não estava conseguindo calcular ambas as correlações.
+# Dito isso, esse script vibe-coded não é o mais elegante, mas funcionou para o que eu precisava fazer em um dia. Essas matrizes são copiadas e coladas diferetamente do libreoffice, simplemente para facilitar minha vida.
+
 # ==============================================================================
-# 1. MATRIZES (COPIADAS DIRETAMENTE DO SEU VSCODE)
+# 1. MATRIZES
 # ==============================================================================
 
 matriz_modelagem_txt = """
